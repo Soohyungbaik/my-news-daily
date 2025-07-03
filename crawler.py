@@ -54,8 +54,9 @@ for title, url in filtered:
 
 html += "</ul></body></html>"
 
-os.makedirs("daily_html", exist_ok=True)
-with open(f"daily_html/{today}.html", 'w', encoding='utf-8') as f:
+os.makedirs("docs/daily_html", exist_ok=True)
+output_path = f"docs/daily_html/{today}.html"
+with open(output_path, 'w', encoding='utf-8') as f:
     f.write(html)
 
 # index.html 갱신
