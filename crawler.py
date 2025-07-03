@@ -15,7 +15,7 @@ res = requests.get(source_url)
 # 소스가 없으면 종료
 if res.status_code == 404:
     print("⛔ 뉴스 소스 없음:", source_url)
-    exit()
+    exit(0)
 
 # 뉴스 파싱
 soup = BeautifulSoup(res.text, 'html.parser')
