@@ -1,0 +1,39 @@
+name: Daily Newsletter
+
+on:
+  schedule:
+    - cron: '0 23 * * *'  # KST 8:00 실행
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  newsletter:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: pip install requests beautifulsoup4
+
+    - name: Run crawler
+      run: python crawler.py
+      env:
+        EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+        EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+
+    - name: Commit and Push
+      run: |
+        git config user.name "github-actions"
+        git config user.email "actions@github.com"
+        git add docs/index.html docs/daily_html/*.html
+        git commit -m "📰 Add newsletter for $(date +'%Y-%m-%d')" || echo "Nothing to commit"
+        git push
