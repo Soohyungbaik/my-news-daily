@@ -8,7 +8,7 @@ from email.mime.text import MIMEText
 # 오늘 날짜
 today = datetime.today().strftime('%Y-%m-%d')
 
-# 실제 뉴스 소스 URL (SC-daily-news 기준)
+# 뉴스 소스 URL
 source_url = f"https://baik1204.github.io/SC-daily-news/{today}.html"
 res = requests.get(source_url)
 
@@ -63,14 +63,14 @@ for title, url in filtered:
 
 html += "</ul></body></html>"
 
-# 결과 저장
-os.makedirs("docs/daily_html", exist_ok=True)
-output_path = f"docs/daily_html/{today}.html"
+# 결과 저장 (루트 기준)
+os.makedirs("daily_html", exist_ok=True)
+output_path = f"daily_html/{today}.html"
 with open(output_path, 'w', encoding='utf-8') as f:
     f.write(html)
 
-# 📌 index.html 갱신 (docs/index.html)
-index_path = "docs/index.html"
+# index.html 갱신 (루트 기준)
+index_path = "index.html"
 if not os.path.exists(index_path):
     with open(index_path, 'w', encoding='utf-8') as f:
         f.write("<html><head><meta charset='UTF-8'></head><body><h1>뉴스 모음</h1><ul></ul></body></html>")
@@ -84,7 +84,7 @@ if new_entry not in index_html:
     with open(index_path, 'w', encoding='utf-8') as f:
         f.write(index_html)
 
-# ✅ 이메일 발송
+# 이메일 발송
 msg = MIMEText(html, 'html')
 msg['Subject'] = f"[뉴스레터] {today}"
 msg['From'] = os.getenv("EMAIL_FROM")
@@ -100,4 +100,5 @@ except Exception as e:
     print("❌ 이메일 전송 실패:", e)
 
 print(f"✅ 뉴스 HTML 생성 완료: {output_path}")
+
 
