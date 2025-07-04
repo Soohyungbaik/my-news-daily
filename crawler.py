@@ -7,10 +7,10 @@ from email.mime.text import MIMEText
 import shutil
 
 # 오늘 날짜 (테스트용으로 수동 고정 가능)
-today = '2025-06-30'
+today = '2025-06-27'
 
 # 뉴스 소스 URL
-source_url = f"https://baik1204.github.io/SC-daily-news/{today}.html"
+source_url = f"https://soohyungbaik.github.io/my-news-daily/dailynews/{today}.html"
 res = requests.get(source_url)
 
 # 키워드 불러오기 (소문자)
