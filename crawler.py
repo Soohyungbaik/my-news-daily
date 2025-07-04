@@ -4,6 +4,7 @@ from datetime import datetime
 import os
 import smtplib
 from email.mime.text import MIMEText
+import shutil
 
 # 오늘 날짜
 today = datetime.today().strftime('%Y-%m-%d')
@@ -26,7 +27,7 @@ if os.path.exists('media_list.txt'):
 else:
     media_list = []
 
-# 기본 HTML 시작
+# HTML 기본 템플릿 시작
 html = f"""
 <html><head><meta charset='UTF-8'>
 <style>
@@ -63,16 +64,24 @@ else:
 
 html += "</ul></body></html>"
 
-# 결과 저장 (루트 기준)
+# 결과 저장 디렉토리 처리
 output_dir = "daily_html"
-
-if os.path.exists(output_dir) and not os.path.isdir(output_dir):
-    print(f"❌ '{output_dir}'는 디렉토리가 아니라 파일입니다. 삭제 후 다시 실행하세요.")
-    exit(1)
+if os.path.exists(output_dir):
+    if not os.path.isdir(output_dir):
+        print(f"⚠️ '{output_dir}'는 파일입니다. 자동으로 삭제하고 디렉토리를 다시 생성합니다.")
+        os.remove(output_dir)
+        os.makedirs(output_dir)
+    else:
+        os.makedirs(output_dir, exist_ok=True)
 else:
-    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(output_dir)
 
-# index.html 갱신 (루트 기준)
+# HTML 저장
+output_path = f"{output_dir}/{today}.html"
+with open(output_path, 'w', encoding='utf-8') as f:
+    f.write(html)
+
+# index.html 갱신
 index_path = "index.html"
 if not os.path.exists(index_path):
     with open(index_path, 'w', encoding='utf-8') as f:
@@ -81,7 +90,7 @@ if not os.path.exists(index_path):
 with open(index_path, 'r', encoding='utf-8') as f:
     index_html = f.read()
 
-new_entry = f"<li><a href='daily_html/{today}.html'>{today}</a></li>"
+new_entry = f"<li><a href='{output_dir}/{today}.html'>{today}</a></li>"
 if new_entry not in index_html:
     index_html = index_html.replace("</ul>", f"{new_entry}\n</ul>")
     with open(index_path, 'w', encoding='utf-8') as f:
@@ -103,6 +112,4 @@ except Exception as e:
     print("❌ 이메일 전송 실패:", e)
 
 print(f"✅ 뉴스 HTML 생성 완료: {output_path}")
-
-
 
