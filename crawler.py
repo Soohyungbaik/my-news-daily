@@ -27,6 +27,19 @@ if os.path.exists('media_list.txt'):
 else:
     media_list = []
 
+# 본문 내 키워드 검사 함수
+def check_keyword_in_article(url, keywords):
+    try:
+        res = requests.get(url, timeout=5)
+        if res.status_code != 200:
+            return False
+        soup = BeautifulSoup(res.text, 'html.parser')
+        text = soup.get_text()
+        return any(k.lower() in text.lower() for k in keywords)
+    except Exception as e:
+        print(f"❌ 본문 크롤링 실패: {url} - {e}")
+        return False
+
 # HTML 템플릿 시작
 html = f"""
 <html><head><meta charset='UTF-8'>
@@ -48,10 +61,14 @@ if res.status_code == 200:
     for item in items:
         title = item.text
         url = item['href']
-        keyword_match = any(k in title for k in keywords) if keywords else False
-        media_match = any(m in title or m in url for m in media_list) if media_list else False
+        keyword_match = any(k.lower() in title.lower() for k in keywords) if keywords else False
+        media_match = any(m.lower() in title.lower() or m.lower() in url.lower() for m in media_list) if media_list else False
+        body_match = check_keyword_in_article(url, keywords) if keywords else False
 
-        if (not keywords and not media_list) or keyword_match or media_match:
+        print(f"🔍 {title}")
+        print(f"    제목 매치: {keyword_match}, 매체 매치: {media_match}, 본문 매치: {body_match}")
+
+        if (not keywords and not media_list) or keyword_match or media_match or body_match:
             filtered.append((title, url))
 
     if filtered:
@@ -162,6 +179,5 @@ except Exception as e:
     print("❌ 이메일 전송 실패:", e)
 
 print(f"✅ 뉴스 HTML 생성 완료: {output_path}")
-
 
 
