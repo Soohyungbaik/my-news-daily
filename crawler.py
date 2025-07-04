@@ -64,10 +64,13 @@ else:
 html += "</ul></body></html>"
 
 # 결과 저장 (루트 기준)
-os.makedirs("daily_html", exist_ok=True)
-output_path = f"daily_html/{today}.html"
-with open(output_path, 'w', encoding='utf-8') as f:
-    f.write(html)
+output_dir = "daily_html"
+
+if os.path.exists(output_dir) and not os.path.isdir(output_dir):
+    print(f"❌ '{output_dir}'는 디렉토리가 아니라 파일입니다. 삭제 후 다시 실행하세요.")
+    exit(1)
+else:
+    os.makedirs(output_dir, exist_ok=True)
 
 # index.html 갱신 (루트 기준)
 index_path = "index.html"
