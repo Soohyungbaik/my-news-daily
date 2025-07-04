@@ -83,16 +83,69 @@ with open(output_path, 'w', encoding='utf-8') as f:
 
 # index.html 갱신
 index_path = "index.html"
-if not os.path.exists(index_path):
-    with open(index_path, 'w', encoding='utf-8') as f:
-        f.write("<html><head><meta charset='UTF-8'></head><body><h1>뉴스 모음</h1><ul></ul></body></html>")
 
+# index.html이 디렉토리일 경우 삭제 후 파일로 생성
+if os.path.exists(index_path):
+    if not os.path.isfile(index_path):
+        print(f"⚠️ '{index_path}'는 파일이 아닙니다. 자동으로 삭제하고 새로 생성합니다.")
+        shutil.rmtree(index_path)
+        with open(index_path, 'w', encoding='utf-8') as f:
+            f.write("""<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>뉴스 모음</title>
+  </head>
+  <body>
+    <h1>뉴스 모음</h1>
+    <ul>
+      <!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->
+    </ul>
+  </body>
+</html>""")
+else:
+    # 파일은 존재하지만 내용이 없을 수 있음 → 내용 보장
+    with open(index_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    if "<ul>" not in content:
+        with open(index_path, 'w', encoding='utf-8') as f:
+            f.write("""<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>뉴스 모음</title>
+  </head>
+  <body>
+    <h1>뉴스 모음</h1>
+    <ul>
+      <!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->
+    </ul>
+  </body>
+</html>""")
+else:
+    # index.html이 없으면 새로 생성
+    with open(index_path, 'w', encoding='utf-8') as f:
+        f.write("""<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>뉴스 모음</title>
+  </head>
+  <body>
+    <h1>뉴스 모음</h1>
+    <ul>
+      <!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->
+    </ul>
+  </body>
+</html>""")
+
+# 날짜 링크 추가
 with open(index_path, 'r', encoding='utf-8') as f:
     index_html = f.read()
 
-new_entry = f"<li><a href='{output_dir}/{today}.html'>{today}</a></li>"
+new_entry = f"<li><a href=\"{output_dir}/{today}.html\">{today}</a></li>"
 if new_entry not in index_html:
-    index_html = index_html.replace("</ul>", f"{new_entry}\n</ul>")
+    index_html = index_html.replace(
+        "<!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->",
+        f"{new_entry}\n      <!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->"
+    )
     with open(index_path, 'w', encoding='utf-8') as f:
         f.write(index_html)
 
@@ -112,4 +165,5 @@ except Exception as e:
     print("❌ 이메일 전송 실패:", e)
 
 print(f"✅ 뉴스 HTML 생성 완료: {output_path}")
+
 
