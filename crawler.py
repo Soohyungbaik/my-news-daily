@@ -12,15 +12,6 @@ today = datetime.today().strftime('%Y-%m-%d')
 source_url = f"https://baik1204.github.io/SC-daily-news/{today}.html"
 res = requests.get(source_url)
 
-# 소스가 없으면 종료
-if res.status_code == 404:
-    print("⛔ 뉴스 소스 없음:", source_url)
-    exit(0)
-
-# 뉴스 파싱
-soup = BeautifulSoup(res.text, 'html.parser')
-items = soup.select('li > a')
-
 # 키워드 불러오기
 if os.path.exists('keywords.txt'):
     with open('keywords.txt', 'r', encoding='utf-8') as f:
@@ -35,18 +26,7 @@ if os.path.exists('media_list.txt'):
 else:
     media_list = []
 
-# 뉴스 필터링
-filtered = []
-for item in items:
-    title = item.text
-    url = item['href']
-    keyword_match = any(k in title for k in keywords) if keywords else False
-    media_match = any(m in title or m in url for m in media_list) if media_list else False
-
-    if (not keywords and not media_list) or keyword_match or media_match:
-        filtered.append((title, url))
-
-# HTML 생성
+# 기본 HTML 시작
 html = f"""
 <html><head><meta charset='UTF-8'>
 <style>
@@ -58,8 +38,28 @@ html = f"""
 <ul>
 """
 
-for title, url in filtered:
-    html += f"<li class='item'><a href='{url}'>{title}</a></li>"
+filtered = []
+
+if res.status_code == 200:
+    soup = BeautifulSoup(res.text, 'html.parser')
+    items = soup.select('li > a')
+
+    for item in items:
+        title = item.text
+        url = item['href']
+        keyword_match = any(k in title for k in keywords) if keywords else False
+        media_match = any(m in title or m in url for m in media_list) if media_list else False
+
+        if (not keywords and not media_list) or keyword_match or media_match:
+            filtered.append((title, url))
+
+    if filtered:
+        for title, url in filtered:
+            html += f"<li class='item'><a href='{url}'>{title}</a></li>"
+    else:
+        html += "<li class='item'><i>조건에 맞는 뉴스가 없습니다.</i></li>"
+else:
+    html += "<li class='item'><i>금일 뉴스 소스가 없어 키워드만 제공됩니다.</i></li>"
 
 html += "</ul></body></html>"
 
@@ -100,5 +100,6 @@ except Exception as e:
     print("❌ 이메일 전송 실패:", e)
 
 print(f"✅ 뉴스 HTML 생성 완료: {output_path}")
+
 
 
