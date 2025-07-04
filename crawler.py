@@ -1,17 +1,22 @@
-import requests
-from bs4 import BeautifulSoup
-from datetime import datetime
 import os
 import smtplib
+from bs4 import BeautifulSoup
+from datetime import datetime
 from email.mime.text import MIMEText
-import shutil
 
-# 오늘 날짜
+# 오늘 날짜 (또는 테스트용으로 지정)
 today = datetime.today().strftime('%Y-%m-%d')
 
-# 뉴스 소스 URL
-source_url = f"https://baik1204.github.io/SC-daily-news/{today}.html"
-res = requests.get(source_url)
+# ✅ 테스트용 로컬 HTML 파일 사용
+html_file_path = "sample_news.html"
+if not os.path.exists(html_file_path):
+    print(f"❌ 테스트용 파일 없음: {html_file_path}")
+    exit(1)
+
+with open(html_file_path, "r", encoding="utf-8") as f:
+    res_text = f.read()
+
+res_status_code = 200
 
 # 키워드 불러오기
 if os.path.exists('keywords.txt'):
@@ -41,15 +46,18 @@ html = f"""
 
 filtered = []
 
-if res.status_code == 200:
-    soup = BeautifulSoup(res.text, 'html.parser')
+if res_status_code == 200:
+    soup = BeautifulSoup(res_text, 'html.parser')
     items = soup.select('li > a')
 
     for item in items:
         title = item.text
         url = item['href']
-        keyword_match = any(k in title for k in keywords) if keywords else False
-        media_match = any(m in title or m in url for m in media_list) if media_list else False
+        keyword_match = any(k.lower() in title.lower() for k in keywords) if keywords else False
+        media_match = any(m.lower() in title.lower() or m.lower() in url.lower() for m in media_list) if media_list else False
+
+        print(f"🔍 기사 제목: {title}")
+        print(f"    키워드 매치: {keyword_match}, 매체 매치: {media_match}")
 
         if (not keywords and not media_list) or keyword_match or media_match:
             filtered.append((title, url))
@@ -64,7 +72,7 @@ else:
 
 html += "</ul></body></html>"
 
-# daily_html 디렉토리 처리
+# 결과 저장
 output_dir = "daily_html"
 if os.path.exists(output_dir):
     if not os.path.isdir(output_dir):
@@ -76,64 +84,42 @@ if os.path.exists(output_dir):
 else:
     os.makedirs(output_dir)
 
-# 뉴스 HTML 저장
 output_path = f"{output_dir}/{today}.html"
 with open(output_path, 'w', encoding='utf-8') as f:
     f.write(html)
 
 # index.html 갱신
 index_path = "index.html"
-
 if os.path.exists(index_path):
     if not os.path.isfile(index_path):
-        print(f"⚠️ '{index_path}'는 파일이 아닙니다. 자동으로 삭제 후 생성합니다.")
+        print(f"⚠️ '{index_path}'는 파일이 아닙니다. 삭제 후 생성합니다.")
+        import shutil
         shutil.rmtree(index_path)
         with open(index_path, 'w', encoding='utf-8') as f:
             f.write("""<html>
-  <head>
-    <meta charset="UTF-8">
-    <title>뉴스 모음</title>
-  </head>
-  <body>
-    <h1>뉴스 모음</h1>
-    <ul>
+  <head><meta charset="UTF-8"><title>뉴스 모음</title></head>
+  <body><h1>뉴스 모음</h1><ul>
       <!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->
-    </ul>
-  </body>
-</html>""")
+  </ul></body></html>""")
     else:
         with open(index_path, 'r', encoding='utf-8') as f:
             content = f.read()
         if "<ul>" not in content:
             with open(index_path, 'w', encoding='utf-8') as f:
                 f.write("""<html>
-  <head>
-    <meta charset="UTF-8">
-    <title>뉴스 모음</title>
-  </head>
-  <body>
-    <h1>뉴스 모음</h1>
-    <ul>
+  <head><meta charset="UTF-8"><title>뉴스 모음</title></head>
+  <body><h1>뉴스 모음</h1><ul>
       <!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->
-    </ul>
-  </body>
-</html>""")
+  </ul></body></html>""")
 else:
     with open(index_path, 'w', encoding='utf-8') as f:
         f.write("""<html>
-  <head>
-    <meta charset="UTF-8">
-    <title>뉴스 모음</title>
-  </head>
-  <body>
-    <h1>뉴스 모음</h1>
-    <ul>
+  <head><meta charset="UTF-8"><title>뉴스 모음</title></head>
+  <body><h1>뉴스 모음</h1><ul>
       <!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->
-    </ul>
-  </body>
-</html>""")
+  </ul></body></html>""")
 
-# 날짜 링크 삽입
+# 날짜 링크 추가
 with open(index_path, 'r', encoding='utf-8') as f:
     index_html = f.read()
 
@@ -162,5 +148,6 @@ except Exception as e:
     print("❌ 이메일 전송 실패:", e)
 
 print(f"✅ 뉴스 HTML 생성 완료: {output_path}")
+
 
 
