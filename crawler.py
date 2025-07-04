@@ -13,32 +13,19 @@ today = datetime.today().strftime('%Y-%m-%d')
 source_url = f"https://baik1204.github.io/SC-daily-news/{today}.html"
 res = requests.get(source_url)
 
-# 키워드 불러오기
+# 키워드 불러오기 (소문자로 변환)
 if os.path.exists('keywords.txt'):
     with open('keywords.txt', 'r', encoding='utf-8') as f:
-        keywords = [line.strip() for line in f if line.strip()]
+        keywords = [line.strip().lower() for line in f if line.strip()]
 else:
     keywords = []
 
-# 매체 리스트 불러오기
+# 매체 리스트 불러오기 (소문자로 변환)
 if os.path.exists('media_list.txt'):
     with open('media_list.txt', 'r', encoding='utf-8') as f:
-        media_list = [line.strip() for line in f if line.strip()]
+        media_list = [line.strip().lower() for line in f if line.strip()]
 else:
     media_list = []
-
-# 본문 내 키워드 검사 함수
-def check_keyword_in_article(url, keywords):
-    try:
-        res = requests.get(url, timeout=5)
-        if res.status_code != 200:
-            return False
-        soup = BeautifulSoup(res.text, 'html.parser')
-        text = soup.get_text()
-        return any(k.lower() in text.lower() for k in keywords)
-    except Exception as e:
-        print(f"❌ 본문 크롤링 실패: {url} - {e}")
-        return False
 
 # HTML 템플릿 시작
 html = f"""
@@ -59,16 +46,14 @@ if res.status_code == 200:
     items = soup.select('li > a')
 
     for item in items:
-        title = item.text
-        url = item['href']
-        keyword_match = any(k.lower() in title.lower() for k in keywords) if keywords else False
-        media_match = any(m.lower() in title.lower() or m.lower() in url.lower() for m in media_list) if media_list else False
-        body_match = check_keyword_in_article(url, keywords) if keywords else False
+        title = item.text.strip()
+        url = item['href'].strip()
+        full_text = f"{title} {url}".lower()
 
-        print(f"🔍 {title}")
-        print(f"    제목 매치: {keyword_match}, 매체 매치: {media_match}, 본문 매치: {body_match}")
+        keyword_match = any(k in full_text for k in keywords) if keywords else False
+        media_match = any(m in url.lower() for m in media_list) if media_list else False
 
-        if (not keywords and not media_list) or keyword_match or media_match or body_match:
+        if (not keywords and not media_list) or keyword_match or media_match:
             filtered.append((title, url))
 
     if filtered:
@@ -107,48 +92,27 @@ if os.path.exists(index_path):
         shutil.rmtree(index_path)
         with open(index_path, 'w', encoding='utf-8') as f:
             f.write("""<html>
-  <head>
-    <meta charset="UTF-8">
-    <title>뉴스 모음</title>
-  </head>
-  <body>
-    <h1>뉴스 모음</h1>
-    <ul>
-      <!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->
-    </ul>
-  </body>
-</html>""")
+  <head><meta charset="UTF-8"><title>뉴스 모음</title></head>
+  <body><h1>뉴스 모음</h1><ul>
+    <!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->
+  </ul></body></html>""")
     else:
         with open(index_path, 'r', encoding='utf-8') as f:
             content = f.read()
         if "<ul>" not in content:
             with open(index_path, 'w', encoding='utf-8') as f:
                 f.write("""<html>
-  <head>
-    <meta charset="UTF-8">
-    <title>뉴스 모음</title>
-  </head>
-  <body>
-    <h1>뉴스 모음</h1>
-    <ul>
-      <!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->
-    </ul>
-  </body>
-</html>""")
+  <head><meta charset="UTF-8"><title>뉴스 모음</title></head>
+  <body><h1>뉴스 모음</h1><ul>
+    <!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->
+  </ul></body></html>""")
 else:
     with open(index_path, 'w', encoding='utf-8') as f:
         f.write("""<html>
-  <head>
-    <meta charset="UTF-8">
-    <title>뉴스 모음</title>
-  </head>
-  <body>
-    <h1>뉴스 모음</h1>
-    <ul>
-      <!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->
-    </ul>
-  </body>
-</html>""")
+  <head><meta charset="UTF-8"><title>뉴스 모음</title></head>
+  <body><h1>뉴스 모음</h1><ul>
+    <!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->
+  </ul></body></html>""")
 
 # 날짜 링크 삽입
 with open(index_path, 'r', encoding='utf-8') as f:
@@ -158,7 +122,7 @@ new_entry = f"<li><a href=\"{output_dir}/{today}.html\">{today}</a></li>"
 if new_entry not in index_html:
     index_html = index_html.replace(
         "<!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->",
-        f"{new_entry}\n      <!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->"
+        f"{new_entry}\n    <!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->"
     )
     with open(index_path, 'w', encoding='utf-8') as f:
         f.write(index_html)
@@ -179,5 +143,4 @@ except Exception as e:
     print("❌ 이메일 전송 실패:", e)
 
 print(f"✅ 뉴스 HTML 생성 완료: {output_path}")
-
 
