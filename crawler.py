@@ -27,7 +27,7 @@ if os.path.exists('media_list.txt'):
 else:
     media_list = []
 
-# HTML 기본 템플릿 시작
+# HTML 템플릿 시작
 html = f"""
 <html><head><meta charset='UTF-8'>
 <style>
@@ -64,11 +64,11 @@ else:
 
 html += "</ul></body></html>"
 
-# 결과 저장 디렉토리 처리
+# daily_html 디렉토리 처리
 output_dir = "daily_html"
 if os.path.exists(output_dir):
     if not os.path.isdir(output_dir):
-        print(f"⚠️ '{output_dir}'는 파일입니다. 자동으로 삭제하고 디렉토리를 다시 생성합니다.")
+        print(f"⚠️ '{output_dir}'는 파일입니다. 삭제 후 디렉토리로 생성합니다.")
         os.remove(output_dir)
         os.makedirs(output_dir)
     else:
@@ -76,7 +76,7 @@ if os.path.exists(output_dir):
 else:
     os.makedirs(output_dir)
 
-# HTML 저장
+# 뉴스 HTML 저장
 output_path = f"{output_dir}/{today}.html"
 with open(output_path, 'w', encoding='utf-8') as f:
     f.write(html)
@@ -84,10 +84,9 @@ with open(output_path, 'w', encoding='utf-8') as f:
 # index.html 갱신
 index_path = "index.html"
 
-# index.html이 디렉토리일 경우 삭제 후 파일로 생성
 if os.path.exists(index_path):
     if not os.path.isfile(index_path):
-        print(f"⚠️ '{index_path}'는 파일이 아닙니다. 자동으로 삭제하고 새로 생성합니다.")
+        print(f"⚠️ '{index_path}'는 파일이 아닙니다. 자동으로 삭제 후 생성합니다.")
         shutil.rmtree(index_path)
         with open(index_path, 'w', encoding='utf-8') as f:
             f.write("""<html>
@@ -102,13 +101,12 @@ if os.path.exists(index_path):
     </ul>
   </body>
 </html>""")
-else:
-    # 파일은 존재하지만 내용이 없을 수 있음 → 내용 보장
-    with open(index_path, 'r', encoding='utf-8') as f:
-        content = f.read()
-    if "<ul>" not in content:
-        with open(index_path, 'w', encoding='utf-8') as f:
-            f.write("""<html>
+    else:
+        with open(index_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        if "<ul>" not in content:
+            with open(index_path, 'w', encoding='utf-8') as f:
+                f.write("""<html>
   <head>
     <meta charset="UTF-8">
     <title>뉴스 모음</title>
@@ -121,7 +119,6 @@ else:
   </body>
 </html>""")
 else:
-    # index.html이 없으면 새로 생성
     with open(index_path, 'w', encoding='utf-8') as f:
         f.write("""<html>
   <head>
@@ -136,7 +133,7 @@ else:
   </body>
 </html>""")
 
-# 날짜 링크 추가
+# 날짜 링크 삽입
 with open(index_path, 'r', encoding='utf-8') as f:
     index_html = f.read()
 
