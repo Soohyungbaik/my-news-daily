@@ -1,4 +1,5 @@
-Naver
+naver.com
+google.com
 inven.co.kr
 thisisgame.com
 ezyeconomy.com
@@ -9,4 +10,4 @@ gnn.gamer.com.tw
 4gamer.net
 gamebiz.jp
 gamer.ne.jp
-news.qq.com/
+news.qq.com
