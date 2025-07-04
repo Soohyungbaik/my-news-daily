@@ -7,7 +7,7 @@ from email.mime.text import MIMEText
 import shutil
 
 # 오늘 날짜
-today = datetime.today().strftime('%Y-%m-%d')
+today = '2025-06-30' 
 
 # 뉴스 소스 URL
 source_url = f"https://baik1204.github.io/SC-daily-news/{today}.html"
