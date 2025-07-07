@@ -9,13 +9,10 @@ output_dir = "dailynews"  # 크롤러가 참조하는 폴더
 os.makedirs(output_dir, exist_ok=True)
 output_path = os.path.join(output_dir, f"{today}.html")
 
-# 예시 뉴스 항목 (운영 시 외부에서 주입)
-news_items = [
-    # {"title": "젠레스 존 제로 출시", "url": https://example.com/news1},
-    # {"title": "HoYoverse 신작 공개", "url": https://example.com/news2},
-]
+# 테스트 뉴스 없음 → 키워드용
+news_items = []  # 실제 사용 시 채워넣거나 외부에서 주입
 
-# HTML 시작
+# HTML 포맷 (crawler.py와 호환)
 html = f"""<html><head><meta charset='UTF-8'>
 <style>
   body {{ font-family: sans-serif; }}
