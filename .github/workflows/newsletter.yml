@@ -40,6 +40,7 @@ jobs:
 
           if [ -f "index.html" ]; then git add index.html; fi
           if ls daily_html/*.html > /dev/null 2>&1; then git add daily_html/*.html; fi
+          if ls dailynews/*.html > /dev/null 2>&1; then git add dailynews/*.html; fi  # ✅ 추가
 
           git commit -m "📰 Add newsletter for $(date +'%Y-%m-%d')" || echo "Nothing to commit"
           git push
