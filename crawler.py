@@ -6,21 +6,21 @@ import smtplib
 from email.mime.text import MIMEText
 import shutil
 
-# 오늘 날짜 (테스트용으로 수동 고정 가능)
+# 오늘 날짜
 today = datetime.today().strftime('%Y-%m-%d')
 
 # 뉴스 소스 URL
 source_url = f"https://soohyungbaik.github.io/my-news-daily/dailynews/{today}.html"
 res = requests.get(source_url)
 
-# 키워드 불러오기 (소문자)
+# 키워드 불러오기
 if os.path.exists('keywords.txt'):
     with open('keywords.txt', 'r', encoding='utf-8') as f:
         keywords = [line.strip().lower() for line in f if line.strip()]
 else:
     keywords = []
 
-# 매체 리스트 불러오기 (소문자)
+# 매체 리스트 불러오기
 if os.path.exists('media_list.txt'):
     with open('media_list.txt', 'r', encoding='utf-8') as f:
         media_list = [line.strip().lower() for line in f if line.strip()]
@@ -40,6 +40,7 @@ html = f"""
 """
 
 filtered = []
+matching_urls = []  # 🔍 필터 조건에 매칭된 모든 뉴스의 URL 저장
 
 if res.status_code == 200:
     soup = BeautifulSoup(res.text, 'html.parser')
@@ -51,27 +52,40 @@ if res.status_code == 200:
         lower_title = title.lower()
         lower_url = url.lower()
 
-        # 기사 본문 요청
         try:
             article_res = requests.get(url, timeout=3)
             article_text = article_res.text.lower() if article_res.status_code == 200 else ''
         except:
             article_text = ''
 
-        # 필터링 조건 검사
         keyword_match = any(k in lower_title or k in article_text for k in keywords)
         media_match = any(m in lower_url for m in media_list)
 
         if (not keywords and not media_list) or keyword_match or media_match:
             filtered.append((title, url))
+            matching_urls.append(url)
+        elif keyword_match or media_match:
+            matching_urls.append(url)
 
     if filtered:
         for title, url in filtered:
             html += f"<li class='item'><a href='{url}'>{title}</a></li>"
     else:
         html += "<li class='item'><i>조건에 맞는 뉴스가 없습니다.</i></li>"
+        if matching_urls:
+            html += "<li><strong>📌 키워드/매체에 매칭된 URL 목록:</strong></li>"
+            for u in matching_urls:
+                html += f"<li><a href='{u}'>{u}</a></li>"
+        elif keywords:
+            html += "<li><strong>📌 오늘의 키워드 목록:</strong></li>"
+            for kw in keywords:
+                html += f"<li>- {kw}</li>"
 else:
-    html += "<li class='item'><i>금일 뉴스 소스가 없어 키워드만 제공됩니다.</i></li>"
+    html += "<li class='item'><i>금일 뉴스 소스가 없어 키워드만 제공합니다.</i></li>"
+    if keywords:
+        html += "<li><strong>📌 오늘의 키워드 목록:</strong></li>"
+        for kw in keywords:
+            html += f"<li>- {kw}</li>"
 
 html += "</ul></body></html>"
 
@@ -87,7 +101,7 @@ if os.path.exists(output_dir):
 else:
     os.makedirs(output_dir)
 
-# 뉴스 HTML 저장
+# HTML 저장
 output_path = f"{output_dir}/{today}.html"
 with open(output_path, 'w', encoding='utf-8') as f:
     f.write(html)
