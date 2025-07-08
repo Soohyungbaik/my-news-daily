@@ -5,16 +5,15 @@ import os
 import smtplib
 from email.mime.text import MIMEText
 
-# 날짜 지정
+# 날짜 설정
 today = datetime.today().strftime('%Y-%m-%d')
 source_url = f"https://soohyungbaik.github.io/my-news-daily/dailynews/{today}.html"
 
-# 요청 헤더 설정 (403 우회용)
 HEADERS = {
     "User-Agent": "Mozilla/5.0"
 }
 
-# 원격 HTML 로드 → 실패 시 로컬 백업
+# 원격 HTML → 로컬 fallback
 try:
     res = requests.get(source_url, headers=HEADERS)
     res.raise_for_status()
@@ -31,7 +30,7 @@ except Exception:
         print("❌ 원격 뉴스 요청 실패 및 로컬 파일도 없음")
         html_text = None
 
-# 키워드 및 매체 리스트 불러오기
+# 키워드 및 매체 목록 로드
 keywords = []
 if os.path.exists('keywords.txt'):
     with open('keywords.txt', 'r', encoding='utf-8') as f:
@@ -56,32 +55,44 @@ html = f"""<html><head><meta charset='UTF-8'>
 filtered = []
 matching_urls = []
 
+def extract_og_title(url):
+    try:
+        res = requests.get(url, headers=HEADERS, timeout=5)
+        res.raise_for_status()
+        res.encoding = res.apparent_encoding
+        soup = BeautifulSoup(res.text, 'html.parser')
+        og_tag = soup.find("meta", property="og:title")
+        if og_tag and og_tag.get("content"):
+            return og_tag["content"].strip()
+    except Exception as e:
+        print(f"[헤드라인 추출 실패] {url} - {e}")
+    return None
+
+# HTML이 존재할 때 필터링
 if html_text:
     soup = BeautifulSoup(html_text, 'html.parser')
     items = soup.select('li > a')
 
     for item in items:
-        title = item.text.strip()
         url = item['href'].strip()
-        lower_title = title.lower()
-        lower_url = url.lower()
+        if not url.startswith("http"):
+            continue
 
-        try:
-            article_res = requests.get(url, headers=HEADERS, timeout=5)
-            if article_res.status_code == 200:
-                article_res.encoding = article_res.apparent_encoding
-                article_text = article_res.text.lower()
-            else:
-                article_text = ''
-        except:
-            article_text = ''
+        headline = extract_og_title(url)
+        if not headline:
+            headline = item.get_text(strip=True)
 
-        keyword_match = any(k in lower_title or k in article_text for k in keywords)
-        media_match = any(m in lower_url for m in media_list)
+        headline_lower = headline.lower()
+        url_lower = url.lower()
+
+        keyword_match = any(k in headline_lower for k in keywords)
+        media_match = any(m in url_lower for m in media_list)
 
         if keyword_match or media_match:
-            filtered.append((title, url))
+            filtered.append((headline, url))
             matching_urls.append(url)
+        else:
+            print(f"[미매칭] {headline}")
 
     if filtered:
         for title, url in filtered:
@@ -105,7 +116,7 @@ else:
 
 html += "</ul></body></html>"
 
-# HTML 파일 저장
+# 저장
 output_dir = "daily_html"
 os.makedirs(output_dir, exist_ok=True)
 output_path = f"{output_dir}/{today}.html"
@@ -113,7 +124,7 @@ with open(output_path, 'w', encoding='utf-8') as f:
     f.write(html)
 print(f"✅ 뉴스 HTML 생성 완료: {output_path}")
 
-# index.html 갱신
+# index.html 자동 갱신
 index_path = "index.html"
 if not os.path.exists(index_path):
     with open(index_path, 'w', encoding='utf-8') as f:
