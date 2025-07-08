@@ -2,7 +2,7 @@ name: Daily Newsletter
 
 on:
   schedule:
-    - cron: '0 23 * * *'  # 매일 오전 8시 KST
+    - cron: '0 23 * * *'  # 매일 오전 8시 KST (UTC 23시)
   workflow_dispatch:
 
 permissions:
@@ -13,33 +13,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: 📦 Checkout Repository
+        uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: 🐍 Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
-        run: pip install requests beautifulsoup4 feedparser
+      - name: 🧩 Install dependencies
+        run: |
+          pip install requests beautifulsoup4 googletrans==4.0.0rc1
 
-      - name: Generate dailynews HTML
-        run: python generate_dailynews.py  # 필요시 사전 테스트용 뉴스 삽입 스크립트
+      - name: 🌐 Collect news
+        run: python collect_news.py
 
-      - name: Run crawler
+      - name: 📰 Generate daily HTML
+        run: python generate_dailynews.py
+
+      - name: 📬 Send Email with filtered news
         run: python crawler.py
         env:
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
 
-      - name: Commit and Push
+      - name: 💾 Commit and Push Newsletter
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add index.html || true
-          git add daily_html/*.html || true
-          git add dailynews/*.html || true
+
+          if [ -f "index.html" ]; then git add index.html; fi
+          if ls daily_html/*.html > /dev/null 2>&1; then git add daily_html/*.html; fi
+          if ls dailynews/*.json > /dev/null 2>&1; then git add dailynews/*.json; fi
+          if ls dailynews/*.html > /dev/null 2>&1; then git add dailynews/*.html; fi
+
           git commit -m "📰 Add newsletter for $(date +'%Y-%m-%d')" || echo "Nothing to commit"
           git push
 
