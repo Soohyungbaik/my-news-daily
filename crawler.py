@@ -5,15 +5,16 @@ import os
 import smtplib
 from email.mime.text import MIMEText
 
-# 날짜 지정
 today = datetime.today().strftime('%Y-%m-%d')
 source_url = f"https://soohyungbaik.github.io/my-news-daily/dailynews/{today}.html"
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0"
+    "User-Agent": "Mozilla/5.0",
+    "Accept-Language": "ko,en;q=0.9",
+    "Referer": "https://www.google.com"
 }
 
-# HTML 로드 (원격 우선, 실패 시 로컬 대체)
+# 원격 뉴스 HTML 요청 (실패 시 로컬 fallback)
 try:
     res = requests.get(source_url, headers=HEADERS)
     res.raise_for_status()
@@ -31,10 +32,12 @@ except Exception:
         html_text = None
 
 # 키워드 및 매체 리스트 불러오기
-keywords, media_list = [], []
+keywords = []
 if os.path.exists('keywords.txt'):
     with open('keywords.txt', 'r', encoding='utf-8') as f:
         keywords = [line.strip().lower() for line in f if line.strip()]
+
+media_list = []
 if os.path.exists('media_list.txt'):
     with open('media_list.txt', 'r', encoding='utf-8') as f:
         media_list = [line.strip().lower() for line in f if line.strip()]
@@ -53,19 +56,23 @@ html = f"""<html><head><meta charset='UTF-8'>
 filtered = []
 matching_urls = []
 
-def extract_og_title(url):
+# og:title 추출 함수
+def extract_headline(url):
     try:
-        res = requests.get(url, headers=HEADERS, timeout=5)
+        res = requests.get(url, headers=HEADERS, timeout=7)
+        res.encoding = res.apparent_encoding
         if res.status_code == 200:
-            res.encoding = res.apparent_encoding
             soup = BeautifulSoup(res.text, 'html.parser')
             og = soup.find("meta", property="og:title")
             if og and og.get("content"):
                 return og["content"].strip()
+            elif soup.title and soup.title.string:
+                return soup.title.string.strip()
     except Exception as e:
         print(f"⚠️ 제목 추출 실패: {url} - {e}")
     return None
 
+# 필터링 실행
 if html_text:
     soup = BeautifulSoup(html_text, 'html.parser')
     items = soup.select('li > a')
@@ -73,25 +80,24 @@ if html_text:
     for item in items:
         raw_title = item.text.strip()
         url = item['href'].strip()
+        lower_title = raw_title.lower()
         lower_url = url.lower()
 
-        # URL로 본문 접근 및 키워드 필터링
         try:
-            article_res = requests.get(url, headers=HEADERS, timeout=5)
-            article_res.encoding = article_res.apparent_encoding
-            article_text = article_res.text.lower() if article_res.status_code == 200 else ''
+            res = requests.get(url, headers=HEADERS, timeout=7)
+            res.encoding = res.apparent_encoding
+            article_text = res.text.lower() if res.status_code == 200 else ''
         except:
             article_text = ''
-
-        og_title = extract_og_title(url)
-        effective_title = og_title if og_title else raw_title
-        lower_title = effective_title.lower()
 
         keyword_match = any(k in lower_title or k in article_text for k in keywords)
         media_match = any(m in lower_url for m in media_list)
 
         if keyword_match or media_match:
-            filtered.append((effective_title, url))
+            title = extract_headline(url)
+            if not title:
+                title = raw_title
+            filtered.append((title, url))
             matching_urls.append(url)
 
     if filtered:
@@ -100,7 +106,7 @@ if html_text:
     else:
         html += "<li class='item'><i>조건에 맞는 뉴스가 없습니다.</i></li>"
         if matching_urls:
-            html += "<li><strong>📌 매칭된 URL 목록:</strong></li>"
+            html += "<li><strong>📌 키워드/매체에 매칭된 URL 목록:</strong></li>"
             for u in matching_urls:
                 html += f"<li><a href='{u}'>{u}</a></li>"
         elif keywords:
@@ -109,12 +115,14 @@ if html_text:
                 html += f"<li>- {kw}</li>"
 else:
     html += "<li class='item'><i>금일 뉴스 소스가 없어 키워드만 제공합니다.</i></li>"
-    for kw in keywords:
-        html += f"<li>- {kw}</li>"
+    if keywords:
+        html += "<li><strong>📌 오늘의 키워드 목록:</strong></li>"
+        for kw in keywords:
+            html += f"<li>- {kw}</li>"
 
 html += "</ul></body></html>"
 
-# 저장
+# HTML 저장
 output_dir = "daily_html"
 os.makedirs(output_dir, exist_ok=True)
 output_path = f"{output_dir}/{today}.html"
@@ -137,7 +145,7 @@ if new_entry not in index_html:
     with open(index_path, 'w', encoding='utf-8') as f:
         f.write(index_html)
 
-# 이메일 전송
+# 이메일 발송
 msg = MIMEText(html, 'html')
 msg['Subject'] = f"[뉴스레터] {today}"
 msg['From'] = os.getenv("EMAIL_FROM")
