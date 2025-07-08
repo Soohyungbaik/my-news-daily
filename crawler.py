@@ -6,7 +6,7 @@ import smtplib
 from email.mime.text import MIMEText
 import shutil
 
-today = datetime.today().strftime('%Y-%m-%d')
+today = "2025-07-04"
 source_url = f"https://soohyungbaik.github.io/my-news-daily/dailynews/{today}.html"
 
 try:
