@@ -3,90 +3,83 @@ import os
 import re
 import requests
 from bs4 import BeautifulSoup
-from bs4 import XMLParsedAsHTMLWarning
 import warnings
+from bs4 import XMLParsedAsHTMLWarning
 
-# 경고 무시
+# 경고 무시 설정
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
+# 날짜
 today = datetime.date.today().strftime('%Y-%m-%d')
 output_dir = "dailynews"
 os.makedirs(output_dir, exist_ok=True)
 output_path = os.path.join(output_dir, f"{today}.html")
 
-# 키워드 불러오기
-keywords = []
-if os.path.exists("keywords.txt"):
-    with open("keywords.txt", "r", encoding="utf-8") as f:
-        keywords = [line.strip().lower() for line in f if line.strip()]
+# 키워드 리스트
+keywords = [
+    # 한국어
+    "서브컬처", "수집형", "미소녀", "게임쇼", "굿스마일", "부스", "콜라보", "런칭", "업계 동향", "시장 보고서",
+    "니케", "블루아카이브", "원신", "젠레스 존 제로", "스타레일", "붕괴",
+    # 일본어
+    "崩壊：スターレイル", "ブルーアーカイブ", "ゼンレスゾーンゼロ", "ホヨバース", "ゲームショウ", "二次創作", "ガチャ", "美少女",
+    # 중국어
+    "米哈游", "崩坏", "蓝档案", "原神", "少女收集", "二次元", "集换式", "合作", "发售", "虚拟主播",
+    # 영어
+    "Zenless Zone Zero", "Blue Archive", "Nikke"
+]
 
-# 매체 필터
-media_list = []
-if os.path.exists("media_list.txt"):
-    with open("media_list.txt", "r", encoding="utf-8") as f:
-        media_list = [line.strip().lower() for line in f if line.strip()]
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+}
 
 news_items = []
 
-# 요청 헤더
-headers = {
-    "User-Agent": "Mozilla/5.0",
-    "Accept-Language": "ko,en;q=0.9",
-    "Referer": "https://www.google.com"
-}
-
-# 제목 추출 함수
 def get_article_title(url):
     try:
-        with requests.Session() as s:
-            res = s.get(url, headers=headers, timeout=7)
+        res = requests.get(url, headers=headers, timeout=5)
+        if res.status_code == 200:
             res.encoding = res.apparent_encoding
-            if res.status_code == 200:
-                soup = BeautifulSoup(res.text, "html.parser")
-                og_title = soup.find("meta", property="og:title")
-                if og_title and og_title.get("content"):
-                    return og_title["content"].strip()
-                elif soup.title and soup.title.string:
-                    return soup.title.string.strip()
+            soup = BeautifulSoup(res.text, "html.parser")
+            og_title = soup.find("meta", property="og:title")
+            if og_title and og_title.get("content"):
+                return og_title["content"].strip()
     except Exception as e:
         print(f"⚠️ 제목 추출 실패: {url} - {e}")
     return None
 
-# 뉴스 수집 함수
-def collect_news_from(sites, region, selector="a[href]"):
+def collect_news_from(sites, region, selector="a[href]", max_links=50):
     print(f"🟡 [{region}] 수집 시작")
     match_count = 0
     for url in sites:
         try:
-            with requests.Session() as s:
-                res = s.get(url, headers=headers, timeout=7)
-                if res.status_code >= 400:
-                    print(f"⚠️ [{region}] {url} - 응답 코드 {res.status_code} (계속 진행)")
-                res.encoding = res.apparent_encoding
-                soup = BeautifulSoup(res.text, "html.parser")
-                links = soup.select(selector)
-                for link in links:
-                    text = link.get_text(strip=True)
-                    href = link.get("href", "")
-                    if not href.startswith("http"):
-                        continue
+            res = requests.get(url, headers=headers, timeout=5)
+            if res.status_code != 200:
+                print(f"❌ [{region}] {url} - 응답 코드 {res.status_code} (계속 진행)")
+                continue
 
-                    lower_text = text.lower()
-                    lower_url = href.lower()
+            res.encoding = res.apparent_encoding
+            soup = BeautifulSoup(res.text, "html.parser")
+            links = soup.select(selector)
 
-                    keyword_match = any(k in lower_text or k in lower_url for k in keywords)
-                    media_match = any(m in lower_url for m in media_list)
+            for link in links[:max_links]:  # 최대 링크 수 제한
+                raw_text = link.get_text(strip=True)
+                href = link.get("href", "")
+                if not href.startswith("http"):
+                    continue
 
-                    if keyword_match or media_match:
-                        title = get_article_title(href)
-                        if title and len(title) > 5:
-                            news_items.append({"title": title, "url": href})
-                            match_count += 1
-                        else:
-                            print(f"[{region}] 제목 누락/짧음: {href}")
+                matched = any(k.lower() in raw_text.lower() or k.lower() in href.lower() for k in keywords)
+                if matched:
+                    title = get_article_title(href)
+                    if title:
+                        news_items.append({"title": title, "url": href})
+                        match_count += 1
+                    else:
+                        print(f"[{region}] 미매칭(제목 추출 실패): {raw_text}")
+                else:
+                    print(f"[{region}] 미매칭: {raw_text}")
         except Exception as e:
             print(f"❌ [{region}] {url} - 예외 발생: {e}")
-    print(f"✅ [{region}] 수집 완료 - 매칭 {match_count}건")
+    print(f"✅ [{region}] 총 매칭 {match_count}건")
 
 # 사이트 목록
 korea_sites = [
@@ -94,14 +87,12 @@ korea_sites = [
     "https://www.thisisgame.com/webzine/news/nboard/263/?category=2",
     "https://www.ezyeconomy.com/news/articleList.html?sc_sub_section_code=S2N71&view_type=sm"
 ]
-
 japan_sites = [
     "https://gamebiz.jp/news",
     "https://www.4gamer.net/",
     "https://www.gamer.ne.jp/",
     "https://gnn.gamer.com.tw/index.php?k=4"
 ]
-
 china_sites = [
     "https://www.17173.com/",
     "https://www.youxituoluo.com/",
@@ -109,12 +100,12 @@ china_sites = [
     "https://news.qq.com/"
 ]
 
-# 수집 실행
-collect_news_from(korea_sites, "한국")
-collect_news_from(japan_sites, "일본")
-collect_news_from(china_sites, "중국")
+# 실행
+collect_news_from(korea_sites, "한국", max_links=50)
+collect_news_from(japan_sites, "일본", max_links=50)
+collect_news_from(china_sites, "중국", max_links=50)
 
-# HTML 출력
+# HTML 생성
 html = f"""<html><head><meta charset='UTF-8'>
 <style>
   body {{ font-family: sans-serif; }}
@@ -126,7 +117,7 @@ html = f"""<html><head><meta charset='UTF-8'>
 """
 
 if not news_items:
-    html += "<li class='item'><i>금일 뉴스 소스가 없어 키워드만 제공합니다.</i></li>"
+    html += "<li class='item'><i>금일 뉴스 소스가 없어 키워드만 제공됩니다.</i></li>"
     for kw in keywords:
         html += f"<li>- {kw}</li>"
 else:
@@ -135,7 +126,6 @@ else:
 
 html += "</ul></body></html>"
 
-# 저장
 with open(output_path, "w", encoding="utf-8") as f:
     f.write(html)
 
