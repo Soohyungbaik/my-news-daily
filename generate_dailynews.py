@@ -2,7 +2,10 @@ import datetime
 import os
 import re
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
+import warnings
+
+warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
 today = datetime.date.today().strftime('%Y-%m-%d')
 output_dir = "dailynews"
