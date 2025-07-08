@@ -9,7 +9,6 @@ output_dir = "dailynews"
 os.makedirs(output_dir, exist_ok=True)
 output_path = os.path.join(output_dir, f"{today}.html")
 
-# 키워드 리스트
 keywords = [
     # 한국어
     "서브컬처", "수집형", "미소녀", "게임쇼", "굿스마일", "코스프레", "부스", "콜라보", "런칭", "업계 동향", "시장 보고서",
@@ -22,44 +21,62 @@ keywords = [
     "Zenless Zone Zero", "Blue Archive", "Nikke"
 ]
 
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+}
+
 news_items = []
 
-def clean_title(raw):
-    clean = re.split(r'[|｜\-–—:\[\]]', raw)[0].strip()
-    return clean[:20] + "..." if len(clean) > 20 else clean
+def get_article_title(url):
+    try:
+        res = requests.get(url, headers=headers, timeout=5)
+        if res.status_code == 200:
+            soup = BeautifulSoup(res.text, 'html.parser')
+            og_title = soup.find("meta", property="og:title")
+            if og_title and og_title.get("content"):
+                return og_title["content"].strip()
+    except Exception as e:
+        print(f"⚠️ 제목 추출 실패: {url} - {e}")
+    return None
 
 def collect_news_from(sites, region, selector="a[href]"):
-    headers = {
-        "User-Agent": "Mozilla/5.0"
-    }
     print(f"🟡 [{region}] 수집 시작")
+    match_count = 0
     for url in sites:
         try:
             res = requests.get(url, headers=headers, timeout=5)
-            if res.status_code == 200:
-                res.encoding = res.apparent_encoding
-                soup = BeautifulSoup(res.text, "html.parser")
-                links = soup.select(selector)
-
-                matched = 0
-                for link in links:
-                    raw_title = link.get_text(strip=True)
-                    title = clean_title(raw_title)
-                    href = link.get("href", "")
-                    if not href.startswith("http") or not title:
-                        continue
-                    if any(k.lower() in title.lower() for k in keywords):
-                        news_items.append({"title": title, "url": href})
-                        matched += 1
-                    else:
-                        print(f"[{region}] 미매칭: {title}")
-                print(f"✅ [{region}] {url} - 매칭 {matched}건")
-            else:
+            if res.status_code == 403:
+                print(f"❌ [{region}] {url} - 응답 코드 403")
+                continue
+            elif res.status_code != 200:
                 print(f"❌ [{region}] {url} - 응답 코드 {res.status_code}")
+                continue
+
+            soup = BeautifulSoup(res.text, "html.parser")
+            links = soup.select(selector)
+            for link in links:
+                raw_text = link.get_text(strip=True)
+                href = link.get("href", "")
+                if not href.startswith("http"):
+                    continue
+
+                # 키워드 포함 여부 확인 (텍스트나 URL 기준)
+                matched = any(k.lower() in raw_text.lower() or k.lower() in href.lower() for k in keywords)
+                if matched:
+                    title = get_article_title(href)
+                    if title:
+                        news_items.append({"title": title, "url": href})
+                        match_count += 1
+                    else:
+                        print(f"[{region}] 미매칭(제목 추출 실패): {raw_text}")
+                else:
+                    print(f"[{region}] 미매칭: {raw_text}")
         except Exception as e:
             print(f"❌ [{region}] {url} - 예외 발생: {e}")
 
-# ✅ 한국/일본/중국 사이트 목록
+    print(f"✅ [{region}] {url} - 매칭 {match_count}건")
+
+# 사이트 목록
 korea_sites = [
     "https://www.inven.co.kr/webzine/news/",
     "https://www.thisisgame.com/webzine/news/nboard/263/?category=2",
@@ -80,12 +97,12 @@ china_sites = [
     "https://news.qq.com/"
 ]
 
-# 🔎 수집 실행
+# 실행
 collect_news_from(korea_sites, "한국")
 collect_news_from(japan_sites, "일본")
 collect_news_from(china_sites, "중국")
 
-# ✅ HTML 생성
+# HTML 생성
 html = f"""<html><head><meta charset='UTF-8'>
 <style>
   body {{ font-family: sans-serif; }}
@@ -110,4 +127,3 @@ with open(output_path, "w", encoding="utf-8") as f:
     f.write(html)
 
 print(f"✅ 뉴스 HTML 생성 완료: {output_path}")
-
