@@ -2,18 +2,19 @@ name: Daily Newsletter
 
 on:
   schedule:
-    - cron: '0 23 * * *'  # 매일 오전 8시 KST
-  workflow_dispatch:
+    - cron: '0 23 * * *'  # 매일 오전 8시 (KST 기준)
+  workflow_dispatch:       # 수동 실행도 허용
 
 permissions:
-  contents: 'write'
+  contents: write
 
 jobs:
   newsletter:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -21,19 +22,20 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests beautifulsoup4 feedparser googletrans==4.0.0rc1
+        run: |
+          pip install requests beautifulsoup4
 
       - name: Generate dailynews HTML
         run: python generate_dailynews.py
 
-      - name: Run crawler
+      - name: Run crawler and send email
         run: python crawler.py
         env:
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
 
-      - name: Commit and Push
+      - name: Commit and Push newsletter
         run: |
           git config user.name "github-actions"
           git config user.email actions@github.com
@@ -42,3 +44,4 @@ jobs:
           git add dailynews/*.html || true
           git commit -m "📰 Add newsletter for $(date +'%Y-%m-%d')" || echo "Nothing to commit"
           git push
+
