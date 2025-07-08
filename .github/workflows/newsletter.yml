@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: pip install requests beautifulsoup4
 
-      - name: Generate HTML
+      - name: Generate news HTML
         run: python generate_dailynews.py
 
       - name: Run crawler
