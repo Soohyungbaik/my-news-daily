@@ -6,30 +6,37 @@ import smtplib
 from email.mime.text import MIMEText
 import shutil
 
-# 오늘 날짜
 today = datetime.today().strftime('%Y-%m-%d')
-
-# 뉴스 소스 URL
 source_url = f"https://soohyungbaik.github.io/my-news-daily/dailynews/{today}.html"
-res = requests.get(source_url)
 
-# 키워드 불러오기
+try:
+    res = requests.get(source_url)
+    res.raise_for_status()
+    print(f"✅ 원격 뉴스 파일 요청 성공: {source_url}")
+    html_text = res.text
+except Exception:
+    local_path = f"dailynews/{today}.html"
+    if os.path.exists(local_path):
+        print(f"⚠️ 원격 요청 실패, 로컬 파일로 대체: {local_path}")
+        with open(local_path, 'r', encoding='utf-8') as f:
+            html_text = f.read()
+    else:
+        print("❌ 원격 뉴스 요청 실패 및 로컬 파일도 없음")
+        html_text = None
+
+# 키워드 및 매체 리스트 불러오기
+keywords = []
 if os.path.exists('keywords.txt'):
     with open('keywords.txt', 'r', encoding='utf-8') as f:
         keywords = [line.strip().lower() for line in f if line.strip()]
-else:
-    keywords = []
 
-# 매체 리스트 불러오기
+media_list = []
 if os.path.exists('media_list.txt'):
     with open('media_list.txt', 'r', encoding='utf-8') as f:
         media_list = [line.strip().lower() for line in f if line.strip()]
-else:
-    media_list = []
 
-# HTML 시작
-html = f"""
-<html><head><meta charset='UTF-8'>
+# HTML 템플릿 시작
+html = f"""<html><head><meta charset='UTF-8'>
 <style>
   body {{ font-family: sans-serif; }}
   .item {{ margin-bottom: 10px; }}
@@ -40,10 +47,10 @@ html = f"""
 """
 
 filtered = []
-matching_urls = []  # 🔍 필터 조건에 매칭된 모든 뉴스의 URL 저장
+matching_urls = []
 
-if res.status_code == 200:
-    soup = BeautifulSoup(res.text, 'html.parser')
+if html_text:
+    soup = BeautifulSoup(html_text, 'html.parser')
     items = soup.select('li > a')
 
     for item in items:
@@ -89,60 +96,26 @@ else:
 
 html += "</ul></body></html>"
 
-# daily_html 디렉토리 처리
+# 저장
 output_dir = "daily_html"
-if os.path.exists(output_dir):
-    if not os.path.isdir(output_dir):
-        print(f"⚠️ '{output_dir}'는 파일입니다. 삭제 후 디렉토리로 생성합니다.")
-        os.remove(output_dir)
-        os.makedirs(output_dir)
-    else:
-        os.makedirs(output_dir, exist_ok=True)
-else:
-    os.makedirs(output_dir)
-
-# HTML 저장
+os.makedirs(output_dir, exist_ok=True)
 output_path = f"{output_dir}/{today}.html"
 with open(output_path, 'w', encoding='utf-8') as f:
     f.write(html)
+print(f"✅ 뉴스 HTML 생성 완료: {output_path}")
 
 # index.html 갱신
 index_path = "index.html"
-if os.path.exists(index_path):
-    if not os.path.isfile(index_path):
-        print(f"⚠️ '{index_path}'는 파일이 아닙니다. 삭제 후 새로 생성합니다.")
-        shutil.rmtree(index_path)
-        with open(index_path, 'w', encoding='utf-8') as f:
-            f.write("""<html><head><meta charset="UTF-8"><title>뉴스 모음</title></head>
-  <body><h1>뉴스 모음</h1><ul>
-    <!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->
-  </ul></body></html>""")
-    else:
-        with open(index_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        if "<ul>" not in content:
-            with open(index_path, 'w', encoding='utf-8') as f:
-                f.write("""<html><head><meta charset="UTF-8"><title>뉴스 모음</title></head>
-  <body><h1>뉴스 모음</h1><ul>
-    <!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->
-  </ul></body></html>""")
-else:
+if not os.path.exists(index_path):
     with open(index_path, 'w', encoding='utf-8') as f:
-        f.write("""<html><head><meta charset="UTF-8"><title>뉴스 모음</title></head>
-  <body><h1>뉴스 모음</h1><ul>
-    <!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->
-  </ul></body></html>""")
+        f.write("<html><head><meta charset='UTF-8'><title>뉴스 모음</title></head><body><h1>뉴스 모음</h1><ul>\n<!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->\n</ul></body></html>")
 
-# 날짜 링크 삽입
 with open(index_path, 'r', encoding='utf-8') as f:
     index_html = f.read()
 
 new_entry = f"<li><a href=\"{output_dir}/{today}.html\">{today}</a></li>"
 if new_entry not in index_html:
-    index_html = index_html.replace(
-        "<!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->",
-        f"{new_entry}\n    <!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->"
-    )
+    index_html = index_html.replace("<!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->", f"{new_entry}\n<!-- 다음 날짜가 생기면 crawler.py가 자동 추가 -->")
     with open(index_path, 'w', encoding='utf-8') as f:
         f.write(index_html)
 
@@ -160,7 +133,4 @@ try:
     print("✅ 이메일 전송 완료")
 except Exception as e:
     print("❌ 이메일 전송 실패:", e)
-
-print(f"✅ 뉴스 HTML 생성 완료: {output_path}")
-
 
