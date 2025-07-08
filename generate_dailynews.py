@@ -1,25 +1,67 @@
-import os
-import json
 import datetime
-from googletrans import Translator
+import os
+import requests
+from bs4 import BeautifulSoup
 
-# 날짜 설정
 today = datetime.date.today().strftime('%Y-%m-%d')
-json_path = f"dailynews/{today}.json"
-output_path = f"dailynews/{today}.html"
-os.makedirs("dailynews", exist_ok=True)
+output_dir = "dailynews"
+os.makedirs(output_dir, exist_ok=True)
+output_path = os.path.join(output_dir, f"{today}.html")
 
-# 뉴스 데이터 불러오기
-if os.path.exists(json_path):
-    with open(json_path, 'r', encoding='utf-8') as f:
-        news_items = json.load(f)
-else:
-    news_items = []
+# 키워드 리스트 (대소문자 구분 없음)
+keywords = [
+    # 한국어
+    "서브컬처", "수집형", "미소녀", "게임쇼", "굿스마일", "코스프레", "부스", "콜라보", "런칭", "업계 동향", "시장 보고서",
+    "니케", "블루아카이브", "원신", "젠레스 존 제로", "스타레일", "붕괴",
+    # 일본어
+    "崩壊：スターレイル", "ブルーアーカイブ", "ゼンレスゾーンゼロ", "ホヨバース", "ゲームショウ", "二次創作", "ガチャ", "美少女",
+    # 중국어
+    "米哈游", "崩坏", "蓝档案", "原神", "少女收集", "二次元", "集换式", "合作", "发售", "虚拟主播"
+]
 
-# 번역기 초기화
-translator = Translator()
+news_items = []
 
-# HTML 시작
+# ✅ 일본 사이트 예시
+japan_sites = [
+    https://gamebiz.jp/news,
+    https://www.4gamer.net/
+]
+
+# ✅ 중국 사이트 예시
+china_sites = [
+    https://www.youxituoluo.com/,
+    https://www.17173.com/
+]
+
+# 🔎 일본 뉴스 수집
+for url in japan_sites:
+    try:
+        res = requests.get(url, timeout=5)
+        if res.status_code == 200:
+            soup = BeautifulSoup(res.text, "html.parser")
+            for link in soup.select("a[href]"):
+                title = link.get_text(strip=True)
+                href = link['href']
+                if title and href.startswith("http") and any(k.lower() in title.lower() for k in keywords):
+                    news_items.append({"title": title, "url": href})
+    except Exception as e:
+        print(f"[일본 수집 오류] {url} - {e}")
+
+# 🔎 중국 뉴스 수집
+for url in china_sites:
+    try:
+        res = requests.get(url, timeout=5)
+        if res.status_code == 200:
+            soup = BeautifulSoup(res.text, "html.parser")
+            for link in soup.select("a[href]"):
+                title = link.get_text(strip=True)
+                href = link['href']
+                if title and href.startswith("http") and any(k.lower() in title.lower() for k in keywords):
+                    news_items.append({"title": title, "url": href})
+    except Exception as e:
+        print(f"[중국 수집 오류] {url} - {e}")
+
+# ✅ HTML 생성
 html = f"""<html><head><meta charset='UTF-8'>
 <style>
   body {{ font-family: sans-serif; }}
@@ -30,26 +72,17 @@ html = f"""<html><head><meta charset='UTF-8'>
 <ul>
 """
 
-# 뉴스 본문 작성
 if not news_items:
     html += "<li class='item'><i>금일 뉴스 소스가 없어 키워드만 제공됩니다.</i></li>"
+    for kw in keywords:
+        html += f"<li>- {kw}</li>"
 else:
     for item in news_items:
-        title = item["title"]
-        url = item["url"]
-        try:
-            translated = translator.translate(title, dest='ko').text
-        except Exception:
-            translated = title  # 번역 실패 시 원문 유지
-
-        html += f"<li class='item'><a href='{url}'>{translated}</a></li>"
+        html += f"<li class='item'><a href='{item['url']}'>{item['title']}</a></li>"
 
 html += "</ul></body></html>"
 
-# 저장
-with open(output_path, 'w', encoding='utf-8') as f:
+with open(output_path, "w", encoding="utf-8") as f:
     f.write(html)
 
-print(f"✅ HTML 생성 완료: {output_path}")
-
-
+print(f"✅ 뉴스 HTML 생성 완료: {output_path}")
