@@ -9,17 +9,17 @@ output_dir = "dailynews"
 os.makedirs(output_dir, exist_ok=True)
 output_path = os.path.join(output_dir, f"{today}.html")
 
-keywords = [
-    # 한국어
-    "서브컬처", "수집형", "미소녀", "게임쇼", "굿스마일", "부스", "콜라보", "런칭", "업계 동향", "시장 보고서",
-    "니케", "블루아카이브", "원신", "젠레스 존 제로", "스타레일", "붕괴",
-    # 일본어
-    "崩壊：スターレイル", "ブルーアーカイブ", "ゼンレスゾーンゼロ", "ホヨバース", "ゲームショウ", "二次創作", "ガチャ", "美少女",
-    # 중국어
-    "米哈游", "崩坏", "蓝档案", "原神", "少女收集", "二次元", "集换式", "合作", "发售", "虚拟主播",
-    # 영어
-    "Zenless Zone Zero", "Blue Archive", "Nikke"
-]
+# 키워드 리스트
+keywords = []
+if os.path.exists('keywords.txt'):
+    with open('keywords.txt', 'r', encoding='utf-8') as f:
+        keywords = [line.strip().lower() for line in f if line.strip()]
+
+# 매체 리스트
+media_list = []
+if os.path.exists('media_list.txt'):
+    with open('media_list.txt', 'r', encoding='utf-8') as f:
+        media_list = [line.strip().lower() for line in f if line.strip()]
 
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
@@ -35,6 +35,8 @@ def get_article_title(url):
             og_title = soup.find("meta", property="og:title")
             if og_title and og_title.get("content"):
                 return og_title["content"].strip()
+        else:
+            print(f"⚠️ 헤드라인 응답코드 {res.status_code}: {url}")
     except Exception as e:
         print(f"⚠️ 제목 추출 실패: {url} - {e}")
     return None
@@ -45,13 +47,8 @@ def collect_news_from(sites, region, selector="a[href]"):
     for url in sites:
         try:
             res = requests.get(url, headers=headers, timeout=5)
-            if res.status_code == 403:
-                print(f"❌ [{region}] {url} - 응답 코드 403")
-                continue
-            elif res.status_code != 200:
-                print(f"❌ [{region}] {url} - 응답 코드 {res.status_code}")
-                continue
-
+            if res.status_code != 200:
+                print(f"⚠️ [{region}] {url} - 응답 코드 {res.status_code} (계속 진행)")
             soup = BeautifulSoup(res.text, "html.parser")
             links = soup.select(selector)
             for link in links:
@@ -60,20 +57,21 @@ def collect_news_from(sites, region, selector="a[href]"):
                 if not href.startswith("http"):
                     continue
 
-                # 키워드 포함 여부 확인 (텍스트나 URL 기준)
-                matched = any(k.lower() in raw_text.lower() or k.lower() in href.lower() for k in keywords)
-                if matched:
-                    title = get_article_title(href)
-                    if title:
-                        news_items.append({"title": title, "url": href})
-                        match_count += 1
-                    else:
-                        print(f"[{region}] 미매칭(제목 추출 실패): {raw_text}")
+                title = get_article_title(href)
+                lower_title = (title or raw_text).lower()
+                lower_href = href.lower()
+
+                keyword_match = any(k in lower_title for k in keywords)
+                media_match = any(m in lower_href for m in media_list)
+
+                if keyword_match or media_match:
+                    final_title = title if title else raw_text
+                    news_items.append({"title": final_title, "url": href})
+                    match_count += 1
                 else:
                     print(f"[{region}] 미매칭: {raw_text}")
         except Exception as e:
             print(f"❌ [{region}] {url} - 예외 발생: {e}")
-
     print(f"✅ [{region}] {url} - 매칭 {match_count}건")
 
 # 사이트 목록
@@ -127,3 +125,4 @@ with open(output_path, "w", encoding="utf-8") as f:
     f.write(html)
 
 print(f"✅ 뉴스 HTML 생성 완료: {output_path}")
+
