@@ -9,7 +9,7 @@ output_dir = "dailynews"
 os.makedirs(output_dir, exist_ok=True)
 output_path = os.path.join(output_dir, f"{today}.html")
 
-# 🔍 키워드
+# 키워드 리스트
 keywords = [
     # 한국어
     "서브컬처", "수집형", "미소녀", "게임쇼", "굿스마일", "코스프레", "부스", "콜라보", "런칭", "업계 동향", "시장 보고서",
@@ -24,41 +24,42 @@ keywords = [
 
 news_items = []
 
-# 🔧 제목 정제
 def clean_title(raw):
     clean = re.split(r'[|｜\-–—:\[\]]', raw)[0].strip()
     return clean[:20] + "..." if len(clean) > 20 else clean
 
-# 🔍 뉴스 수집 공통 함수
-def collect_news_from(sites, region, selector="a[href]", force_encoding=None):
+def collect_news_from(sites, region, selector="a[href]"):
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
     print(f"🟡 [{region}] 수집 시작")
     for url in sites:
         try:
-            res = requests.get(url, timeout=5)
-            if force_encoding:
-                res.encoding = force_encoding  # 인코딩 강제 설정
+            res = requests.get(url, headers=headers, timeout=5)
             if res.status_code == 200:
+                res.encoding = res.apparent_encoding
                 soup = BeautifulSoup(res.text, "html.parser")
                 links = soup.select(selector)
-                match_count = 0
+
+                matched = 0
                 for link in links:
                     raw_title = link.get_text(strip=True)
                     title = clean_title(raw_title)
                     href = link.get("href", "")
-                    if not href.startswith("http"):
+                    if not href.startswith("http") or not title:
                         continue
-                    if title and any(k.lower() in title.lower() for k in keywords):
+                    if any(k.lower() in title.lower() for k in keywords):
                         news_items.append({"title": title, "url": href})
-                        match_count += 1
+                        matched += 1
                     else:
                         print(f"[{region}] 미매칭: {title}")
-                print(f"✅ [{region}] {url} - 매칭 {match_count}건")
+                print(f"✅ [{region}] {url} - 매칭 {matched}건")
             else:
                 print(f"❌ [{region}] {url} - 응답 코드 {res.status_code}")
         except Exception as e:
             print(f"❌ [{region}] {url} - 예외 발생: {e}")
 
-# ✅ 사이트 목록
+# ✅ 한국/일본/중국 사이트 목록
 korea_sites = [
     "https://www.inven.co.kr/webzine/news/",
     "https://www.thisisgame.com/webzine/news/nboard/263/?category=2",
@@ -79,10 +80,10 @@ china_sites = [
     "https://news.qq.com/"
 ]
 
-# ✅ 뉴스 수집 실행
+# 🔎 수집 실행
 collect_news_from(korea_sites, "한국")
-collect_news_from(japan_sites, "일본", force_encoding="utf-8")  # 일본은 UTF-8 강제
-collect_news_from(china_sites, "중국", force_encoding="utf-8")  # 중국도 UTF-8 기본 시도
+collect_news_from(japan_sites, "일본")
+collect_news_from(china_sites, "중국")
 
 # ✅ HTML 생성
 html = f"""<html><head><meta charset='UTF-8'>
@@ -109,3 +110,4 @@ with open(output_path, "w", encoding="utf-8") as f:
     f.write(html)
 
 print(f"✅ 뉴스 HTML 생성 완료: {output_path}")
+
