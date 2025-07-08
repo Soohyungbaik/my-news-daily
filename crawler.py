@@ -4,16 +4,23 @@ from datetime import datetime
 import os
 import smtplib
 from email.mime.text import MIMEText
-import shutil
 
+# 날짜 지정
 today = datetime.today().strftime('%Y-%m-%d')
 source_url = f"https://soohyungbaik.github.io/my-news-daily/dailynews/{today}.html"
 
+# 요청 헤더 설정 (403 우회용)
+HEADERS = {
+    "User-Agent": "Mozilla/5.0"
+}
+
+# 원격 HTML 로드 → 실패 시 로컬 백업
 try:
-    res = requests.get(source_url)
+    res = requests.get(source_url, headers=HEADERS)
     res.raise_for_status()
-    print(f"✅ 원격 뉴스 파일 요청 성공: {source_url}")
+    res.encoding = res.apparent_encoding
     html_text = res.text
+    print(f"✅ 원격 뉴스 파일 요청 성공: {source_url}")
 except Exception:
     local_path = f"dailynews/{today}.html"
     if os.path.exists(local_path):
@@ -60,18 +67,20 @@ if html_text:
         lower_url = url.lower()
 
         try:
-            article_res = requests.get(url, timeout=3)
-            article_text = article_res.text.lower() if article_res.status_code == 200 else ''
+            article_res = requests.get(url, headers=HEADERS, timeout=5)
+            if article_res.status_code == 200:
+                article_res.encoding = article_res.apparent_encoding
+                article_text = article_res.text.lower()
+            else:
+                article_text = ''
         except:
             article_text = ''
 
         keyword_match = any(k in lower_title or k in article_text for k in keywords)
         media_match = any(m in lower_url for m in media_list)
 
-        if (not keywords and not media_list) or keyword_match or media_match:
+        if keyword_match or media_match:
             filtered.append((title, url))
-            matching_urls.append(url)
-        elif keyword_match or media_match:
             matching_urls.append(url)
 
     if filtered:
@@ -96,7 +105,7 @@ else:
 
 html += "</ul></body></html>"
 
-# 저장
+# HTML 파일 저장
 output_dir = "daily_html"
 os.makedirs(output_dir, exist_ok=True)
 output_path = f"{output_dir}/{today}.html"
