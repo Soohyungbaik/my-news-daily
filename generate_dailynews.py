@@ -23,9 +23,12 @@ keywords = [
 
 news_items = []
 
-# 🔧 제목 정제 함수
+import re
+
 def clean_title(raw):
-    return re.split(r'[|｜\-–—]', raw)[0].strip()
+    # 너무 긴 경우 자동으로 잘라냄
+    clean = re.split(r'[|｜\-–—:\[\]]', raw)[0].strip()
+    return clean[:20] + "..." if len(clean) > 20 else clean
 
 # 🔍 공통 수집 함수
 def collect_news_from(sites, region, selector="a[href]"):
