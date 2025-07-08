@@ -9,6 +9,7 @@ output_dir = "dailynews"
 os.makedirs(output_dir, exist_ok=True)
 output_path = os.path.join(output_dir, f"{today}.html")
 
+# 🔑 키워드 리스트
 keywords = [
     # 한국어
     "서브컬처", "수집형", "미소녀", "게임쇼", "굿스마일", "코스프레", "부스", "콜라보", "런칭", "업계 동향", "시장 보고서",
@@ -23,15 +24,16 @@ keywords = [
 
 news_items = []
 
-import re
-
+# 🧼 제목 정제 함수
 def clean_title(raw):
-    # 너무 긴 경우 자동으로 잘라냄
     clean = re.split(r'[|｜\-–—:\[\]]', raw)[0].strip()
-    return clean[:20] + "..." if len(clean) > 20 else clean
+    return clean[:80] + "..." if len(clean) > 80 else clean
 
-# 🔍 공통 수집 함수
+# 🔍 공통 수집 함수 + 매칭 로그 포함
 def collect_news_from(sites, region, selector="a[href]"):
+    count_total = 0
+    count_matched = 0
+    print(f"\n📡 {region} 뉴스 수집 시작:")
     for url in sites:
         try:
             res = requests.get(url, timeout=5)
@@ -44,25 +46,29 @@ def collect_news_from(sites, region, selector="a[href]"):
                     href = link.get("href", "")
                     if not href.startswith("http"):
                         continue
+                    count_total += 1
                     if title and any(k.lower() in title.lower() for k in keywords):
                         news_items.append({"title": title, "url": href})
+                        print(f"✅ [{region}] 매칭: {title}")
+                        count_matched += 1
+                    else:
+                        print(f"❌ [{region}] 미매칭: {title}")
         except Exception as e:
             print(f"[{region} 수집 오류] {url} - {e}")
+    print(f"📦 {region} 총 수집: {count_total}, 매칭됨: {count_matched}\n")
 
-# ✅ 한국/일본/중국 사이트 목록
+# ✅ 수집 대상
 korea_sites = [
     "https://www.inven.co.kr/webzine/news/",
     "https://www.thisisgame.com/webzine/news/nboard/263/?category=2",
     "https://www.ezyeconomy.com/news/articleList.html?sc_sub_section_code=S2N71&view_type=sm"
 ]
-
 japan_sites = [
     "https://gamebiz.jp/news",
     "https://www.4gamer.net/",
     "https://www.gamer.ne.jp/",
     "https://gnn.gamer.com.tw/index.php?k=4"
 ]
-
 china_sites = [
     "https://www.17173.com/",
     "https://www.youxituoluo.com/",
@@ -70,12 +76,12 @@ china_sites = [
     "https://news.qq.com/"
 ]
 
-# 🔍 수집 실행
+# 🛰 수집 실행
 collect_news_from(korea_sites, "한국")
 collect_news_from(japan_sites, "일본")
 collect_news_from(china_sites, "중국")
 
-# ✅ HTML 생성
+# 📰 HTML 생성
 html = f"""<html><head><meta charset='UTF-8'>
 <style>
   body {{ font-family: sans-serif; }}
@@ -99,5 +105,4 @@ html += "</ul></body></html>"
 with open(output_path, "w", encoding="utf-8") as f:
     f.write(html)
 
-print(f"✅ 뉴스 HTML 생성 완료: {output_path}")
-
+print(f"\n✅ 뉴스 HTML 생성 완료: {output_path}")
