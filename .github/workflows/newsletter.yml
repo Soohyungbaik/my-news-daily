@@ -21,10 +21,10 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests beautifulsoup4 feedparser
+        run: pip install requests beautifulsoup4 feedparser googletrans==4.0.0rc1
 
       - name: Generate dailynews HTML
-        run: python generate_dailynews.py  # 필요시 사전 테스트용 뉴스 삽입 스크립트
+        run: python generate_dailynews.py
 
       - name: Run crawler
         run: python crawler.py
