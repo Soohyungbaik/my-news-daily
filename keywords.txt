@@ -3,7 +3,6 @@ hoyoverse
 원신
 nikke
 goddess of victory: nikke
-zenless zone zero
 젠레스 존 제로
 서브컬처
 수집형
@@ -27,4 +26,5 @@ vtuber
 시장 보고서
 게임쇼
 런칭
-bluearchive
+Zenless Zone Zero
+Blue Archive
