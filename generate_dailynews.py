@@ -25,14 +25,14 @@ news_items = []
 
 # ✅ 일본 사이트 예시
 japan_sites = [
-    https://gamebiz.jp/news,
-    https://www.4gamer.net/
+    "https://gamebiz.jp/news",
+    "https://www.4gamer.net/"
 ]
 
 # ✅ 중국 사이트 예시
 china_sites = [
-    https://www.youxituoluo.com/,
-    https://www.17173.com/
+    "https://www.youxituoluo.com/",
+    "https://www.17173.com/"
 ]
 
 # 🔎 일본 뉴스 수집
