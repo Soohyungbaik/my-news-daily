@@ -18,21 +18,32 @@ keywords = [
     # 중국어
     "米哈游", "崩坏", "蓝档案", "原神", "少女收集", "二次元", "集换式", "合作", "发售", "虚拟主播"
     # 영어
-    "Zenless Zone Zero", "Blue Archive"
+    "Zenless Zone Zero", "Blue Archive", "Nikke"
 ]
 
 news_items = []
 
-# ✅ 일본 사이트 예시
-japan_sites = [
-    "https://gamebiz.jp/news",
-    "https://www.4gamer.net/"
+# ✅ 한국 사이트 (대부분 RSS 없이 BeautifulSoup 기반 처리 필요)
+korea_sites = [
+    "https://www.inven.co.kr/webzine/news/",
+    "https://www.thisisgame.com/webzine/news/nboard/263/?category=2",
+    "https://www.ezyeconomy.com/news/articleList.html?sc_sub_section_code=S2N71&view_type=sm"
 ]
 
-# ✅ 중국 사이트 예시
+# ✅ 일본 사이트
+japan_sites = [
+    "https://gamebiz.jp/news",
+    "https://www.4gamer.net/",
+    "https://www.gamer.ne.jp/",
+    "https://gnn.gamer.com.tw/index.php?k=4"
+]
+
+# ✅ 중국 사이트
 china_sites = [
+    "https://www.17173.com/",
     "https://www.youxituoluo.com/",
-    "https://www.17173.com/"
+    "https://www.163.com/dy/media/T1439279320876.html",
+    "https://news.qq.com/"
 ]
 
 # 🔎 일본 뉴스 수집
