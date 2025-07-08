@@ -1,5 +1,6 @@
 import datetime
 import os
+import re
 import requests
 from bs4 import BeautifulSoup
 
@@ -8,7 +9,6 @@ output_dir = "dailynews"
 os.makedirs(output_dir, exist_ok=True)
 output_path = os.path.join(output_dir, f"{today}.html")
 
-# 키워드 리스트 (대소문자 구분 없음)
 keywords = [
     # 한국어
     "서브컬처", "수집형", "미소녀", "게임쇼", "굿스마일", "코스프레", "부스", "콜라보", "런칭", "업계 동향", "시장 보고서",
@@ -16,21 +16,43 @@ keywords = [
     # 일본어
     "崩壊：スターレイル", "ブルーアーカイブ", "ゼンレスゾーンゼロ", "ホヨバース", "ゲームショウ", "二次創作", "ガチャ", "美少女",
     # 중국어
-    "米哈游", "崩坏", "蓝档案", "原神", "少女收集", "二次元", "集换式", "合作", "发售", "虚拟主播"
+    "米哈游", "崩坏", "蓝档案", "原神", "少女收集", "二次元", "集换式", "合作", "发售", "虚拟主播",
     # 영어
     "Zenless Zone Zero", "Blue Archive", "Nikke"
 ]
 
 news_items = []
 
-# ✅ 한국 사이트 (대부분 RSS 없이 BeautifulSoup 기반 처리 필요)
+# 🔧 제목 정제 함수
+def clean_title(raw):
+    return re.split(r'[|｜\-–—]', raw)[0].strip()
+
+# 🔍 공통 수집 함수
+def collect_news_from(sites, region, selector="a[href]"):
+    for url in sites:
+        try:
+            res = requests.get(url, timeout=5)
+            if res.status_code == 200:
+                soup = BeautifulSoup(res.text, "html.parser")
+                links = soup.select(selector)
+                for link in links:
+                    raw_title = link.get_text(strip=True)
+                    title = clean_title(raw_title)
+                    href = link.get("href", "")
+                    if not href.startswith("http"):
+                        continue
+                    if title and any(k.lower() in title.lower() for k in keywords):
+                        news_items.append({"title": title, "url": href})
+        except Exception as e:
+            print(f"[{region} 수집 오류] {url} - {e}")
+
+# ✅ 한국/일본/중국 사이트 목록
 korea_sites = [
     "https://www.inven.co.kr/webzine/news/",
     "https://www.thisisgame.com/webzine/news/nboard/263/?category=2",
     "https://www.ezyeconomy.com/news/articleList.html?sc_sub_section_code=S2N71&view_type=sm"
 ]
 
-# ✅ 일본 사이트
 japan_sites = [
     "https://gamebiz.jp/news",
     "https://www.4gamer.net/",
@@ -38,7 +60,6 @@ japan_sites = [
     "https://gnn.gamer.com.tw/index.php?k=4"
 ]
 
-# ✅ 중국 사이트
 china_sites = [
     "https://www.17173.com/",
     "https://www.youxituoluo.com/",
@@ -46,67 +67,10 @@ china_sites = [
     "https://news.qq.com/"
 ]
 
-# 🔧 제목 정제 함수
-def clean_title(raw):
-    return re.split(r'[|｜\-–—]', raw)[0].strip()
-
-# 🔍 수집 공통 처리
-def collect_news_from(sites, region):
-    for url in sites:
-        try:
-            res = requests.get(url, timeout=5)
-            if res.status_code == 200:
-                soup = BeautifulSoup(res.text, "html.parser")
-                for link in soup.select("a[href]"):
-                    raw_title = link.get_text(strip=True)
-                    title = clean_title(raw_title)
-                    href = link['href']
-                    if title and href.startswith("http") and any(k.lower() in title.lower() for k in keywords):
-                        news_items.append({"title": title, "url": href})
-        except Exception as e:
-            print(f"[{region} 수집 오류] {url} - {e}")
-            
-# 🔎 한국 뉴스 수집
-for url in korea_sites:
-    try:
-        res = requests.get(url, timeout=5)
-        if res.status_code == 200:
-            soup = BeautifulSoup(res.text, "html.parser")
-            for link in soup.select("a[href]"):
-                title = link.get_text(strip=True)
-                href = link['href']
-                if title and href.startswith("http") and any(k.lower() in title.lower() for k in keywords):
-                    news_items.append({"title": title, "url": href})
-    except Exception as e:
-        print(f"[한국 수집 오류] {url} - {e}")
-
-# 🔎 일본 뉴스 수집
-for url in japan_sites:
-    try:
-        res = requests.get(url, timeout=5)
-        if res.status_code == 200:
-            soup = BeautifulSoup(res.text, "html.parser")
-            for link in soup.select("a[href]"):
-                title = link.get_text(strip=True)
-                href = link['href']
-                if title and href.startswith("http") and any(k.lower() in title.lower() for k in keywords):
-                    news_items.append({"title": title, "url": href})
-    except Exception as e:
-        print(f"[일본 수집 오류] {url} - {e}")
-
-# 🔎 중국 뉴스 수집
-for url in china_sites:
-    try:
-        res = requests.get(url, timeout=5)
-        if res.status_code == 200:
-            soup = BeautifulSoup(res.text, "html.parser")
-            for link in soup.select("a[href]"):
-                title = link.get_text(strip=True)
-                href = link['href']
-                if title and href.startswith("http") and any(k.lower() in title.lower() for k in keywords):
-                    news_items.append({"title": title, "url": href})
-    except Exception as e:
-        print(f"[중국 수집 오류] {url} - {e}")
+# 🔍 수집 실행
+collect_news_from(korea_sites, "한국")
+collect_news_from(japan_sites, "일본")
+collect_news_from(china_sites, "중국")
 
 # ✅ HTML 생성
 html = f"""<html><head><meta charset='UTF-8'>
@@ -133,3 +97,4 @@ with open(output_path, "w", encoding="utf-8") as f:
     f.write(html)
 
 print(f"✅ 뉴스 HTML 생성 완료: {output_path}")
+
