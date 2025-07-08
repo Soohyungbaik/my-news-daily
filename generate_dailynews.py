@@ -3,7 +3,7 @@ import os
 import requests
 from bs4 import BeautifulSoup
 
-today = '2025-07-04'
+today = datetime.date.today().strftime('%Y-%m-%d')
 output_dir = "dailynews"
 os.makedirs(output_dir, exist_ok=True)
 output_path = os.path.join(output_dir, f"{today}.html")
