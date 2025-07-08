@@ -46,6 +46,20 @@ china_sites = [
     "https://news.qq.com/"
 ]
 
+# 🔎 한국 뉴스 수집
+for url in korea_sites:
+    try:
+        res = requests.get(url, timeout=5)
+        if res.status_code == 200:
+            soup = BeautifulSoup(res.text, "html.parser")
+            for link in soup.select("a[href]"):
+                title = link.get_text(strip=True)
+                href = link['href']
+                if title and href.startswith("http") and any(k.lower() in title.lower() for k in keywords):
+                    news_items.append({"title": title, "url": href})
+    except Exception as e:
+        print(f"[한국 수집 오류] {url} - {e}")
+
 # 🔎 일본 뉴스 수집
 for url in japan_sites:
     try:
