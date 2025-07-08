@@ -7,7 +7,7 @@ from email.mime.text import MIMEText
 import shutil
 
 today = datetime.today().strftime('%Y-%m-%d')
-source_url = fhttps://soohyungbaik.github.io/my-news-daily/dailynews/{today}.html
+source_url = f"https://soohyungbaik.github.io/my-news-daily/dailynews/{today}.html"
 
 try:
     res = requests.get(source_url)
