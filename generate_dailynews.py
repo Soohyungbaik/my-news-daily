@@ -46,6 +46,26 @@ china_sites = [
     "https://news.qq.com/"
 ]
 
+# 🔧 제목 정제 함수
+def clean_title(raw):
+    return re.split(r'[|｜\-–—]', raw)[0].strip()
+
+# 🔍 수집 공통 처리
+def collect_news_from(sites, region):
+    for url in sites:
+        try:
+            res = requests.get(url, timeout=5)
+            if res.status_code == 200:
+                soup = BeautifulSoup(res.text, "html.parser")
+                for link in soup.select("a[href]"):
+                    raw_title = link.get_text(strip=True)
+                    title = clean_title(raw_title)
+                    href = link['href']
+                    if title and href.startswith("http") and any(k.lower() in title.lower() for k in keywords):
+                        news_items.append({"title": title, "url": href})
+        except Exception as e:
+            print(f"[{region} 수집 오류] {url} - {e}")
+            
 # 🔎 한국 뉴스 수집
 for url in korea_sites:
     try:
