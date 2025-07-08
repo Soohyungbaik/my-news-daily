@@ -21,7 +21,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests beautifulsoup4
+        run: pip install requests beautifulsoup4 feedparser
 
       - name: Generate dailynews HTML
         run: python generate_dailynews.py  # 필요시 사전 테스트용 뉴스 삽입 스크립트
